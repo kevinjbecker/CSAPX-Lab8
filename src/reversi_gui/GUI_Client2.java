@@ -10,6 +10,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
 import reversi.ReversiException;
@@ -38,6 +39,10 @@ public class GUI_Client2 extends Application implements Observer {
      * is launched.
      */
     private Map< String, String > params = null;
+
+    private Label remaining = new Label("GAME INITIALIZING...");
+    private Label move = new Label("WAITING");
+    private Label status = new Label("RUNNING");
 
     /**
      * Look up a named command line parameter (format "--name=value")
@@ -87,7 +92,47 @@ public class GUI_Client2 extends Application implements Observer {
      */
     private void refresh()
     {
-
+        System.out.println("refreshing");
+//        if ( !this.model.isMyTurn() ) {
+//            this.userOut.println( this.model );
+//            this.userOut.println( this.model.getMovesLeft() + " moves left." );
+//            Board.Status status = this.model.getStatus();
+//            switch ( status )
+//            {
+//                case ERROR:
+//                    //this.userOut.println( status );
+//                    this.endGame();
+//                    break;
+//                case I_WON:
+//                    this.userOut.println( "You won. Yay!" );
+//                    this.endGame();
+//                    break;
+//                case I_LOST:
+//                    this.userOut.println( "You lost. Boo!" );
+//                    this.endGame();
+//                    break;
+//                case TIE:
+//                    this.userOut.println( "Tie game. Meh." );
+//                    this.endGame();
+//                    break;
+//                default:
+//                    this.userOut.println();
+//            }
+//        }
+//        else {
+//            boolean done = false;
+//            do {
+//                // this.userOut.print("type move as row◻︎column: ");
+//                this.userOut.flush();
+//                int row = this.userIn.nextInt();
+//                int col = this.userIn.nextInt();
+//                if (this.model.isValidMove(row, col)) {
+//                    this.userOut.println(this.userIn.nextLine());
+//                    this.serverConn.sendMove(row, col);
+//                    done = true;
+//                }
+//            } while (!done);
+//        }
     }
 
     /**
@@ -105,6 +150,13 @@ public class GUI_Client2 extends Application implements Observer {
     public void start( Stage mainStage ) {
         BorderPane pane = new BorderPane();
         GridPane gp = new GridPane();
+        // sets the alignments of the labels
+        remaining.setTextAlignment(TextAlignment.LEFT);
+        move.setTextAlignment(TextAlignment.CENTER);
+        status.setTextAlignment(TextAlignment.RIGHT);
+        // adds the labels to an HBox
+        FlowPane labels = new FlowPane(remaining, move, status);
+
 
         for(int i = 0; i <= 3; i++)
         {
@@ -119,10 +171,15 @@ public class GUI_Client2 extends Application implements Observer {
             }
         }
 
+        // sets the GridPane to the bottom of the BorderPane
         pane.setCenter(gp);
-        pane.setBottom(new Label("dolor sit amet."));
+        // sets the status HBox to the bottom of the BorderPane
+        pane.setBottom(labels);
 
+        // sets the scene as a new scene of the pane
         mainStage.setScene(new Scene(pane));
+
+        // we have now completed building our GUI, we can show
         mainStage.show();
     }
 

@@ -11,6 +11,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import reversi.ReversiException;
@@ -127,8 +128,7 @@ public class GUI_Client2 extends Application implements Observer
                 this.gp.add(btn, i, j);
             }
         }
-
-        disableAllSpaces();
+        disableSpaces();
 
         // sets the GridPane to the center of the BorderPane
         pane.setCenter(this.gp);
@@ -166,14 +166,24 @@ public class GUI_Client2 extends Application implements Observer
         int row = Integer.parseInt(location[1]);
         int col = Integer.parseInt(location[0]);
 
-        if(this.model.isValidMove(row, col))
+        if(this.model.isMyTurn())
         {
-            this.serverConn.sendMove(row, col);
+            if (this.model.isValidMove(row, col))
+            {
+                this.serverConn.sendMove(row, col);
+            }
+            else
+            {
+                javafx.application.Platform.runLater(() ->
+                        move.setText("INVALID MOVE."));
+            }
         }
         else
         {
-            javafx.application.Platform.runLater( () ->
-                    move.setText("INVALID MOVE."));
+            // if by some way they are able to make a move while the buttons are disabled
+            // really make sure they know it isn't their turn
+            javafx.application.Platform.runLater(() ->
+                    move.setTextFill(Color.web("#FF0000")) );
         }
     }
 
@@ -198,6 +208,23 @@ public class GUI_Client2 extends Application implements Observer
      */
     private void refresh()
     {
+
+        if (this.model.isMyTurn())
+        {
+            enableSpaces();
+            javafx.application.Platform.runLater(() ->
+                    move.setText("YOUR MOVE"));
+        }
+        else
+        {
+            disableSpaces();
+            javafx.application.Platform.runLater(() ->
+                    move.setText("NOT YOUR MOVE"));
+        }
+
+        javafx.application.Platform.runLater(() ->
+                remaining.setText(this.model.getMovesLeft() + " MOVES LEFT"));
+
         // updating the images on the pieces
         // needed every time we refresh (game over or not)
         for(Node c: this.gp.getChildren())
@@ -219,9 +246,9 @@ public class GUI_Client2 extends Application implements Observer
                         child.setGraphic(new ImageView(empty)));
         }
 
-        if(!(this.model.getStatus() == Board.Status.NOT_OVER))
+        if(this.model.getStatus() != Board.Status.NOT_OVER)
         {
-            switch(this.model.getStatus())
+            switch (this.model.getStatus())
             {
                 case ERROR:
                     break;
@@ -233,73 +260,6 @@ public class GUI_Client2 extends Application implements Observer
                     break;
             }
         }
-        else
-        {
-            if (this.model.isMyTurn())
-            {
-                javafx.application.Platform.runLater(() ->
-                        move.setText("YOUR MOVE"));
-            }
-            else
-            {
-                javafx.application.Platform.runLater(() ->
-                        move.setText("NOT YOUR TURN"));
-            }
-
-            javafx.application.Platform.runLater(() ->
-                    remaining.setText(this.model.getMovesLeft() + " MOVES LEFT"));
-        }
-
-
-
-
-        updateAllSpaces();
-        if(!this.model.isMyTurn())
-        {
-            //remaining.setText(this.model.getMovesLeft() + " moves left.");
-            //move.setText("WAIT YOUR TURN");
-
-            Board.Status status = this.model.getStatus();
-
-            switch (status)
-            {
-                case ERROR:
-                    this.status.setText("ERROR");
-                    this.endGame();
-                    break;
-                case I_WON:
-                    this.status.setText("Game over. You won!");
-                    this.endGame();
-                    break;
-                case I_LOST:
-                    this.status.setText("Game over. You lost!");
-                    this.endGame();
-                    break;
-                case TIE:
-                    this.status.setText("Game over. You tied.");
-                    this.endGame();
-                    break;
-            }
-        }
-        else
-        {
-            boolean stillMoving = true;
-            enableValidSpaces();
-
-            while (stillMoving)
-            {
-                System.out.println("Still moving");
-                if(!this.model.isMyTurn()) stillMoving = false;
-            }
-            updateAllSpaces();
-            disableAllSpaces();
-        }
-    }
-
-    private void sendMove(int row, int col)
-    {
-        this.serverConn.sendMove(row, col);
-        this.model.didMyTurn();
     }
 
     /**
@@ -313,35 +273,25 @@ public class GUI_Client2 extends Application implements Observer
     /**
      * Disables all spaces so that no interaction can happen
      */
-    private void disableAllSpaces()
+    private void disableSpaces()
     {
-        System.out.println("disabling spaces");
         for(Node child: this.gp.getChildren())
         {
-            child.setDisable(true);
+            javafx.application.Platform.runLater(() ->
+                    child.setDisable(true));
         }
     }
 
     /**
      * Makes all of the valid spaces enabled so only they can be clicked
      */
-    private void enableValidSpaces()
+    private void enableSpaces()
     {
-        System.out.println("enabling spaces");
         for(Node child: this.gp.getChildren())
         {
-            if(this.model.isValidMove(GridPane.getRowIndex(child), GridPane.getColumnIndex(child))
-                    || this.model.getContents(GridPane.getRowIndex(child), GridPane.getColumnIndex(child)) != Board.Move.NONE)
-            {
-                child.setDisable(false);
-            }
+            javafx.application.Platform.runLater(() ->
+                    child.setDisable(false));
         }
-    }
-
-    private void updateAllSpaces()
-    {
-        System.out.println("updating spaces");
-
     }
 
     /**

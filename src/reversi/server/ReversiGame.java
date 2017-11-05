@@ -42,6 +42,7 @@ public class ReversiGame {
                 else if(makeMove(this.playerTwo, this.playerOne)) {
                     go = false;
                 }
+                System.out.println(this.game);
             }
             catch(ReversiException e) {
                 this.playerOne.error(e.getMessage());

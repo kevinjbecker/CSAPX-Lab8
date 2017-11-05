@@ -4,6 +4,7 @@ import javafx.application.Application;
 
 import java.util.*;
 
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -21,8 +22,8 @@ import reversi2.NetworkClient;
  *
  * @author Kevin Becker
  */
-public class GUI_Client2 extends Application implements Observer {
-
+public class GUI_Client2 extends Application implements Observer
+{
     /**
      * Connection to network interface to server
      */
@@ -46,9 +47,14 @@ public class GUI_Client2 extends Application implements Observer {
     private Label move = new Label("WAITING");
     private Label status = new Label("RUNNING");
 
+    private GridPane gp;
+
     private Image empty = new Image(getClass().getResourceAsStream("empty.jpg"));
     private Image p1 = new Image(getClass().getResourceAsStream("othelloP1.jpg"));
     private Image p2 = new Image(getClass().getResourceAsStream("othelloP2.jpg"));
+
+    private int numRows;
+    private int numCols;
 
     /**
      * Look up a named command line parameter (format "--name=value")
@@ -74,113 +80,58 @@ public class GUI_Client2 extends Application implements Observer {
      * Initializes the client before a build of the game board.
      */
     @Override
-    public void init()
+    public void init() throws Exception
     {
-        try {
-            // gets the two desired parameters that we need
-            String host = getParamNamed("host");
-            int port = Integer.parseInt(getParamNamed("port"));
-            // creates our model
-            this.model = new Board();
-            // sets the serverConn to be a new NetworkClient with host, port and model
-            this.serverConn = new NetworkClient(host, port, model);
-            // initializes our model
-            this.model.initializeGame();
-        }
-        catch (ReversiException re)
-        {
-            System.err.print("Reversi - " + re.getMessage());
-        }
+        super.init();
+        // gets the two desired parameters that we need
+        String host = getParamNamed("host");
+        int port = Integer.parseInt(getParamNamed("port"));
+        // creates our model
+        this.model = new Board();
+        // sets the serverConn to be a new NetworkClient with host, port and model
+        this.serverConn = new NetworkClient(host, port, model);
+        // initializes our model
+        this.model.initializeGame();
     }
 
-    /**
-     *
-     */
-    private void refresh()
+    public void start( Stage mainStage )
     {
-        System.out.println("refreshing");
-        if ( !this.model.isMyTurn() ) {
-
-            move.setText(this.model.getMovesLeft() + " moves left.");
-
-            Board.Status status = this.model.getStatus();
-            switch (status)
-            {
-                case ERROR:
-                    // change /status/ label to say there was an error
-                    this.endGame();
-                    break;
-                case I_WON:
-                    // change the /status/ label to say: Game over. You won!
-                    this.endGame();
-                    break;
-                case I_LOST:
-                    // change the /status/ label to say: Game over. You lost!
-                    this.endGame();
-                    break;
-                case TIE:
-                    // change the /status/ label to say: Game over. You tied.
-                    this.endGame();
-                    break;
-            }
-        }
-        else {
-            boolean stillMoving = true;
-            while (stillMoving) {
-//                this.userOut.print("type move as row◻︎column: ");
-//                this.userOut.flush();
-                int row = 0; //this.userIn.nextInt();
-                int col = 1; //this.userIn.nextInt();
-                if (this.model.isValidMove(row, col)) {
-                    this.serverConn.sendMove(row, col);
-                    stillMoving = false;
-                }
-            }
-        }
-    }
-
-    /**
-     *
-     * @param observable
-     * @param object
-     */
-    public void update(Observable observable, Object object)
-    {
-        // if observable not our model, game crashes with this error
-        assert observable == this.model: "Update from non-model Observable";
-
-        // refresh our game since it is our turn
-        this.refresh();
-    }
-
-    public void start( Stage mainStage ) {
+        // our main viewport
         BorderPane pane = new BorderPane();
-        GridPane gp = new GridPane();
+        // the GridPane that the locations will be put on
+
+        //TODO: make this a method, make the middle ones the correct cool boys
+
+        this.gp = new GridPane();
+
+        this.numCols = this.model.getNCols();
+        this.numRows = this.model.getNRows();
 
         // sets in place all of the buttons that we need
-        for(int i = 0; i < this.model.getNCols(); i++)
+        for(int i = 0; i < this.numCols; i++)
         {
-            for(int j = 0; j < this.model.getNRows(); j++)
+            for(int j = 0; j < this.numRows; j++)
             {
-                // row and col of the button
+                // row and col of the current button
                 int col = i;
                 int row = j;
 
-                // makes a new button
-                Button btn = new Button(i + " " + j);
+                // makes a new button with no text
+                Button btn = new Button();
+                btn.setId(i + " " + j);
                 // makes the graphic for the button
                 btn.setGraphic(new ImageView(empty));
                 // adds an event to the button
-                btn.setOnAction( (EventAction) -> this.serverConn.sendMove(row,col) );
+                btn.setOnMouseClicked( (EventAction) -> checkMove(btn) );
                 // adds the button to the GridPane
-                gp.add(btn, i, j);
+                this.gp.add(btn, i, j);
             }
         }
 
-        // sets the GridPane to the bottom of the BorderPane
-        pane.setCenter(gp);
+        disableAllSpaces();
 
-
+        // sets the GridPane to the center of the BorderPane
+        pane.setCenter(this.gp);
 
         // makes two spacers for the bottom HBox
         Region spacer1 = new Region();
@@ -196,50 +147,211 @@ public class GUI_Client2 extends Application implements Observer {
         // sets the status HBox to the bottom of the BorderPane
         pane.setBottom(labels);
 
-
-
         // sets the scene as a new scene of the pane
         mainStage.setScene(new Scene(pane));
-
+        // sets the title of the window to be Reversi
+        mainStage.setTitle("Reversi");
+        // adds an icon to the window
+        mainStage.getIcons().add(new Image(getClass().getResourceAsStream("othello2.png")));
         // we have now completed building our GUI, we can show
         mainStage.show();
 
-        //this.beginGame();
+        // add ourselves to the model's observer list
+        this.model.addObserver(this);
     }
 
-    private synchronized void beginGame()
+    private void checkMove(Button btn)
     {
-        // add ourselves as an observer
-        this.model.addObserver(this);
+        String [] location = btn.getId().split(" ");
+        int row = Integer.parseInt(location[1]);
+        int col = Integer.parseInt(location[0]);
 
-        // refreshes our game
-        this.refresh();
-
-        while ( this.model.getStatus() == Board.Status.NOT_OVER )
+        if(this.model.isValidMove(row, col))
         {
-            try {
-                this.wait();
-            }
-            catch( InterruptedException ie ) { /*sauce*/ }
+            this.serverConn.sendMove(row, col);
         }
+        else
+        {
+            javafx.application.Platform.runLater( () ->
+                    move.setText("INVALID MOVE."));
+        }
+    }
+
+    /**
+     *
+     * @param observable the observable that we will be checking to see for similarity to our model (it needs to be
+     *                   exact so we cn use '==' instead of .equals(Object).
+     * @param object a required object from the Observer interface. Not needed for this method.
+     */
+    @Override
+    public void update(Observable observable, Object object)
+    {
+        // if observable not our model, game crashes with this error
+        assert observable == this.model: "Update from non-model Observable";
+
+        // refresh our game since it is our turn
+        this.refresh();
+    }
+
+    /**
+     *
+     */
+    private void refresh()
+    {
+        // updating the images on the pieces
+        // needed every time we refresh (game over or not)
+        for(Node c: this.gp.getChildren())
+        {
+            int row = GridPane.getRowIndex(c);
+            int col = GridPane.getColumnIndex(c);
+
+            // the only children are buttons so we can cast it as such
+            Button child = (Button) c;
+
+            if(this.model.getContents(row, col) == Board.Move.PLAYER_ONE)
+                javafx.application.Platform.runLater( () ->
+                        child.setGraphic(new ImageView(p1)));
+            if(this.model.getContents(row, col) == Board.Move.PLAYER_TWO)
+                javafx.application.Platform.runLater( () ->
+                        child.setGraphic(new ImageView(p2)));
+            if(this.model.getContents(row, col) == Board.Move.NONE)
+                javafx.application.Platform.runLater( () ->
+                        child.setGraphic(new ImageView(empty)));
+        }
+
+        if(!(this.model.getStatus() == Board.Status.NOT_OVER))
+        {
+            switch(this.model.getStatus())
+            {
+                case ERROR:
+                    break;
+                case I_WON:
+                    break;
+                case I_LOST:
+                    break;
+                case TIE:
+                    break;
+            }
+        }
+        else
+        {
+            if (this.model.isMyTurn())
+            {
+                javafx.application.Platform.runLater(() ->
+                        move.setText("YOUR MOVE"));
+            }
+            else
+            {
+                javafx.application.Platform.runLater(() ->
+                        move.setText("NOT YOUR TURN"));
+            }
+
+            javafx.application.Platform.runLater(() ->
+                    remaining.setText(this.model.getMovesLeft() + " MOVES LEFT"));
+        }
+
+
+
+
+        updateAllSpaces();
+        if(!this.model.isMyTurn())
+        {
+            //remaining.setText(this.model.getMovesLeft() + " moves left.");
+            //move.setText("WAIT YOUR TURN");
+
+            Board.Status status = this.model.getStatus();
+
+            switch (status)
+            {
+                case ERROR:
+                    this.status.setText("ERROR");
+                    this.endGame();
+                    break;
+                case I_WON:
+                    this.status.setText("Game over. You won!");
+                    this.endGame();
+                    break;
+                case I_LOST:
+                    this.status.setText("Game over. You lost!");
+                    this.endGame();
+                    break;
+                case TIE:
+                    this.status.setText("Game over. You tied.");
+                    this.endGame();
+                    break;
+            }
+        }
+        else
+        {
+            boolean stillMoving = true;
+            enableValidSpaces();
+
+            while (stillMoving)
+            {
+                System.out.println("Still moving");
+                if(!this.model.isMyTurn()) stillMoving = false;
+            }
+            updateAllSpaces();
+            disableAllSpaces();
+        }
+    }
+
+    private void sendMove(int row, int col)
+    {
+        this.serverConn.sendMove(row, col);
+        this.model.didMyTurn();
     }
 
     /**
      * Ends the game.
      */
-    private synchronized void endGame()
+    private void endGame()
     {
         this.notify();
     }
 
+    /**
+     * Disables all spaces so that no interaction can happen
+     */
+    private void disableAllSpaces()
+    {
+        System.out.println("disabling spaces");
+        for(Node child: this.gp.getChildren())
+        {
+            child.setDisable(true);
+        }
+    }
+
+    /**
+     * Makes all of the valid spaces enabled so only they can be clicked
+     */
+    private void enableValidSpaces()
+    {
+        System.out.println("enabling spaces");
+        for(Node child: this.gp.getChildren())
+        {
+            if(this.model.isValidMove(GridPane.getRowIndex(child), GridPane.getColumnIndex(child))
+                    || this.model.getContents(GridPane.getRowIndex(child), GridPane.getColumnIndex(child)) != Board.Move.NONE)
+            {
+                child.setDisable(false);
+            }
+        }
+    }
+
+    private void updateAllSpaces()
+    {
+        System.out.println("updating spaces");
+
+    }
 
     /**
      * GUI is closing, so close the network connection. Server will
      * get the message.
      */
     @Override
-    public void stop()
+    public void stop() throws Exception
     {
+        super.stop();
         this.serverConn.close();
     }
 
@@ -249,7 +361,8 @@ public class GUI_Client2 extends Application implements Observer {
      * @param args not used, here, but named arguments are passed to the GUI.
      *             <code>--host=<i>hostname</i> --port=<i>portnum</i></code>
      */
-    public static void main( String[] args ) {
+    public static void main( String[] args )
+    {
         Application.launch( args );
     }
 

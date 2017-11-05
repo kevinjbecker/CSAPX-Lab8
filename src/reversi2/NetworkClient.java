@@ -144,7 +144,8 @@ public class NetworkClient {
      * Tell the local user to choose a move. How this is communicated to
      * the user is up to the View (UI).
      */
-    private void makeMove() {
+    private void makeMove()
+    {
         this.game.makeMove();
     }
 

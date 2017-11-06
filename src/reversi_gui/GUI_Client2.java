@@ -11,6 +11,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import reversi.ReversiException;
@@ -24,26 +25,19 @@ import reversi2.NetworkClient;
  */
 public class GUI_Client2 extends Application implements Observer
 {
-    /**
-     * Connection to network interface to server
-     */
+    /** Connection to network interface to server */
     private NetworkClient serverConn;
 
-    /**
-     * The model that our client holds
-     */
+    /** The model that our client holds */
     private Board model;
 
-    /**
-     * Where the command line parameters will be stored once the application
-     * is launched.
-     */
+    /** Where the command line parameters will be stored once the application is launched. */
     private Map< String, String > params = null;
 
     /** A Label that tells the user how many moves are remaining in the game. */
-    private Label movesRemaining = new Label("INITIALIZING...");
+    private Label movesRemaining = new Label();
     /** A Label that tells the user whose move it currently is. */
-    private Label currentMove = new Label("NOT YOUR TURN");
+    private Label currentMove = new Label();
     /** A Label that tells the user the status of the game (USUALLY ON). */
     private Label gameStatus = new Label("RUNNING");
 
@@ -78,7 +72,7 @@ public class GUI_Client2 extends Application implements Observer
     }
 
     /**
-     * Initializes the client before a build of the game board.
+     * Initializes the client before a build of the GUI.
      */
     @Override
     public void init() throws Exception
@@ -95,25 +89,38 @@ public class GUI_Client2 extends Application implements Observer
         this.model.initializeGame();
     }
 
+    /**
+     * Constructs our GUI and then displays it at the end
+     *
+     * @param mainStage the stage that we are showing our GUI upon.
+     */
+    @Override
     public void start( Stage mainStage )
     {
         // our main viewport
         BorderPane pane = new BorderPane();
-        // the GridPane that the locations will be put on
-        this.gp = new GridPane();
+
         // builds the button plane
         this.gp = buildButtonGridPane(this.model.getNRows(), this.model.getNCols());
+
         // immediately update the plane so that the center pieces aren't empty
         updatePieceImages();
+
         // disable the spaces until its our turn at which point we can enable them (disabled at first so we don't have
         // any erroneous clicking by the user.
         disableSpaces();
+
         // sets the center of our BorderPane to be the GridPane
         pane.setCenter(this.gp);
 
+        // builds and sets our bottom HBox to the necessary labels (don't need to keep the HBox accessible)
+        pane.setBottom(buildBottomLabelHBox());
 
-        // builds and sets our bottom HBox to the labels (don't need to keep the HBox accessible)
-        pane.setBottom(buildLabelHBox());
+        // builds and sets our top HBox to the necessary labels
+        pane.setTop(buildTopLabelHBox());
+
+        // refreshes as soon as we begin so that the labels say the correct things
+        refresh();
 
 
         // now we need to finalize the creation of the stage and scene.
@@ -124,41 +131,105 @@ public class GUI_Client2 extends Application implements Observer
         // adds an icon to the window
         mainStage.getIcons().add(new Image(getClass().getResourceAsStream("othello2.png")));
 
-        // we have now completed building our GUI, we can show
-        mainStage.show();
-
         // add ourselves to the model's observer list
         this.model.addObserver(this);
-    }
 
-    private void checkMove(Button btn)
-    {
-        String [] location = btn.getId().split(" ");
-        int row = Integer.parseInt(location[1]);
-        int col = Integer.parseInt(location[0]);
+        // we have now completed building our GUI, we can show it
+        mainStage.show();
 
-        if(this.model.isMyTurn())
-        {
-            if (this.model.isValidMove(row, col))
-            {
-                this.serverConn.sendMove(row, col);
-            }
-            else
-            {
-                javafx.application.Platform.runLater(() ->
-                        currentMove.setText("INVALID MOVE."));
-            }
-        }
-        else
-        {
-            // if by some way they are able to make a move while the buttons are disabled
-            // really make sure they know it isn't their turn
-            javafx.application.Platform.runLater(() ->
-                    currentMove.setTextFill(Color.web("#FF0000")) );
-        }
     }
 
     /**
+     * GUI is closing, so close the network connection. Server will
+     * get the message.
+     */
+    @Override
+    public void stop() throws Exception
+    {
+        super.stop();
+        this.serverConn.close();
+    }
+
+    /**
+     * Builds the button GridPane to the dimensions of our playing field.
+     *
+     * @param totalRows the number of rows of buttons that we need.
+     * @param totalCols The number of columns of buttons that we need.
+     */
+    private GridPane buildButtonGridPane(int totalRows, int totalCols)
+    {
+        // an empty GridPane that will eventually be returned
+        GridPane gp = new GridPane();
+        // sets in place all of the buttons that we need
+        for(int col = 0; col < totalCols; ++col)
+        {
+            for(int row = 0; row < totalRows; ++row)
+            {
+                // makes a new button with no text
+                Button btn = new Button();
+                // sets the ID so that we can get its row and column on its action
+                btn.setId(col + " " + row);
+                // makes the graphic for the middle pieces their corresponding players
+                btn.setGraphic(new ImageView(empty));
+                // adds an event to the button
+                btn.setOnMouseClicked( (event) -> checkMove(btn) );
+                // adds the button to the GridPane
+                gp.add(btn, col, row);
+            }
+        }
+
+        // return the newly created GridPane
+        return gp;
+    }
+
+    /**
+     * Builds our top label HBox.
+     *
+     * @return The HBox that contains the labels that go on the top of the GUI.
+     */
+    private HBox buildTopLabelHBox()
+    {
+        // makes two spacers for the bottom HBox
+        Region spacer1 = new Region();
+        Region spacer2 = new Region();
+
+        // sets the attributes of the spacers
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+
+        // sets the text to the correct size in the label
+        currentMove.setFont(new Font(30));
+
+        return new HBox(spacer1, currentMove, spacer2);
+    }
+
+    /**
+     * Builds our bottom label HBox.
+     *
+     * @return The HBox that contains the labels that go on the bottom of the GUI.
+     */
+    private HBox buildBottomLabelHBox()
+    {
+        // makes three spacers for the bottom HBox
+        Region spacer1 = new Region();
+        Region spacer2 = new Region();
+        Region spacer3 = new Region();
+
+        // sets the attributes of the spacers
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+        HBox.setHgrow(spacer3, Priority.ALWAYS);
+
+        // sets the text to the correct size in the labels
+        movesRemaining.setFont(new Font(30));
+        gameStatus.setFont(new Font(30));
+
+        // creates and returns a new labels HBox
+        return new HBox(spacer1, movesRemaining, spacer2, gameStatus, spacer3);
+    }
+
+    /**
+     * The method that gets called by the Board Observable when it is time to trigger an update.
      *
      * @param observable the observable that we will be checking to see for similarity to our model (it needs to be
      *                   exact so we cn use '==' instead of .equals(Object).
@@ -175,29 +246,15 @@ public class GUI_Client2 extends Application implements Observer
     }
 
     /**
-     *
+     * The refresh method that actually refreshes our client GUI so that it reflects the current status of the game.
      */
     private void refresh()
     {
-        // updateTurn()
-        if (this.model.isMyTurn())
-        {
-            enableSpaces();
-            javafx.application.Platform.runLater(() ->
-                    currentMove.setText("YOUR TURN"));
-        }
-        else
-        {
-            disableSpaces();
-            javafx.application.Platform.runLater(() ->
-                    currentMove.setText("NOT YOUR TURN"));
-        }
+        // update's the turn label to say whose turn it is
+        updateTurn();
 
-        // gets the number of moves left (used for ternary to get plurality correct)
-        int movesLeft = this.model.getMovesLeft();
-        // updateMovesLeft()
-        javafx.application.Platform.runLater(() ->
-                movesRemaining.setText(movesLeft + (movesLeft != 0 ? " moves left": " moves left")));
+        // updates the label that says how many moves are left
+        updateMovesLeft();
 
         // updates the images of the pieces
         updatePieceImages();
@@ -212,18 +269,90 @@ public class GUI_Client2 extends Application implements Observer
                     gameOver("ERROR");
                     break;
                 case I_WON:
-                    gameOver("You won!");
+                    gameOver("Game over. You won!");
                     break;
                 case I_LOST:
-                    gameOver("You lost!");
+                    gameOver("Game over. You lost!");
                     break;
                 case TIE:
-                    gameOver("You tied!");
+                    gameOver("Game over. You tied!");
                     break;
             }
         }
     }
 
+    /**
+     * Update the top label that tells the player whose turn it is.
+     */
+    private void updateTurn()
+    {
+        if (this.model.isMyTurn())
+        {
+            enableSpaces();
+            javafx.application.Platform.runLater(() ->
+                    currentMove.setText("It's your turn"));
+        }
+        else
+        {
+            disableSpaces();
+            javafx.application.Platform.runLater(() ->
+                    currentMove.setText("Wait your turn"));
+        }
+    }
+
+    /**
+     * Checks to make sure the move that was just requested is valid or not.
+     *
+     * @param btn The button that was clicked by the user.
+     */
+    private void checkMove(Button btn)
+    {
+        // splits the location of the button based on the ID of it
+        String [] location = btn.getId().split(" ");
+
+        // sets the button's row and column
+        int row = Integer.parseInt(location[1]);
+        int col = Integer.parseInt(location[0]);
+
+        // if its my turn
+        if(this.model.isMyTurn())
+        {
+            // check to make sure its a valid move
+            if (this.model.isValidMove(row, col))
+            {
+                // then send it using the controller
+                this.serverConn.sendMove(row, col);
+            }
+            else
+            {
+                // otherwise tell the player it was an invalid move
+                javafx.application.Platform.runLater(() ->
+                        currentMove.setText("INVALID MOVE"));
+            }
+        }
+        else
+        {
+            // if by some way they are able to make a move while the buttons are disabled
+            // really make sure they know it isn't their turn
+            javafx.application.Platform.runLater(() ->
+                    currentMove.setText("WAIT YOUR TURN!") );
+        }
+    }
+
+    /**
+     * Updates the label that contains the number of moves remaining.
+     */
+    private void updateMovesLeft()
+    {
+        // gets the number of moves left (used for ternary to get plurality correct)
+        int movesLeft = this.model.getMovesLeft();
+        javafx.application.Platform.runLater(() ->
+                movesRemaining.setText(movesLeft + (movesLeft != 1 ? " MOVES": " MOVE")));
+    }
+
+    /**
+     * Updates the images so that the move that was just made is accurately shown on the GUI.
+     */
     private void updatePieceImages()
     {
         // updating the images on the pieces
@@ -252,55 +381,19 @@ public class GUI_Client2 extends Application implements Observer
         }
     }
 
-
-    //TODO: These boys
+    /**
+     * This method is called when the game is over. It updates all of the labels and then nothing else happens.
+     *
+     * @param msg The message that needs to be printed on the top label (win, loss, tie, error).
+     */
     private void gameOver(String msg)
     {
         // set the message on the gameStatus
         javafx.application.Platform.runLater(() ->
-                gameStatus.setText(msg));
+                currentMove.setText(msg));
         // set the currentMove to say that the game is over
         javafx.application.Platform.runLater(() ->
-                currentMove.setText("Game over. Window can be closed."));
-    }
-
-    private GridPane buildButtonGridPane(int totalRows, int totalCols)
-    {
-        GridPane gp = new GridPane();
-        // sets in place all of the buttons that we need
-        for(int col = 0; col < totalCols; ++col)
-        {
-            for(int row = 0; row < totalRows; ++row)
-            {
-                // makes a new button with no text
-                Button btn = new Button();
-                // sets the ID so that we can get its row and column on its action
-                btn.setId(col + " " + row);
-                // makes the graphic for the middle pieces their corresponding players
-                btn.setGraphic(new ImageView(empty));
-                // adds an event to the button
-                btn.setOnMouseClicked( (event) -> checkMove(btn) );
-                // adds the button to the GridPane
-                gp.add(btn, col, row);
-            }
-        }
-
-        // return the newly created GridPane
-        return gp;
-    }
-
-    private HBox buildLabelHBox()
-    {
-        // makes two spacers for the bottom HBox
-        Region spacer1 = new Region();
-        Region spacer2 = new Region();
-
-        // sets the attributes of the spacers
-        HBox.setHgrow(spacer1, Priority.ALWAYS);
-        HBox.setHgrow(spacer2, Priority.ALWAYS);
-
-        // creates and returns a new labels HBox
-        return new HBox(movesRemaining, spacer1, currentMove, spacer2, gameStatus);
+                gameStatus.setText("Stopped"));
     }
 
     /**
@@ -317,26 +410,25 @@ public class GUI_Client2 extends Application implements Observer
     }
 
     /**
-     * Makes all of the valid spaces enabled so only they can be clicked
+     * Makes all of the valid spaces and filled in spaces enabled.
      */
     private void enableSpaces()
     {
+        // goes through each child in the GridPane
         for(Node child: this.gp.getChildren())
         {
-            javafx.application.Platform.runLater(() ->
-                    child.setDisable(false));
-        }
-    }
+            // gets the row and the column of this specific child
+            int row = GridPane.getRowIndex(child);
+            int col = GridPane.getColumnIndex(child);
 
-    /**
-     * GUI is closing, so close the network connection. Server will
-     * get the message.
-     */
-    @Override
-    public void stop() throws Exception
-    {
-        super.stop();
-        this.serverConn.close();
+            // if its a valid spot to place the object, or it has anything other than a NONE move, it is enabled
+            if(this.model.isValidMove(row, col) || this.model.getContents(row, col) != Board.Move.NONE)
+            {
+                // this enables it when the scheduler wants to run it
+                javafx.application.Platform.runLater(() ->
+                        child.setDisable(false));
+            }
+        }
     }
 
     /**

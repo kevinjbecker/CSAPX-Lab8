@@ -575,7 +575,7 @@ public class GUI_Client2 extends Application implements Observer
      * Launch the JavaFX GUI.
      *
      * @param args not used, here, but named arguments are passed to the GUI.
-     *             <code>--host=<i>hostname</i> --port=<i>portnum</i></code>
+     *             <code>--host=<i>hostname</i> --port=<i>port</i></code>
      */
     public static void main( String[] args )
     {

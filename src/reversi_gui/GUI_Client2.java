@@ -3,7 +3,6 @@ package reversi_gui;
 import java.util.*;
 
 import javafx.application.Application;
-import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -14,6 +13,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 
 import reversi.ReversiException;
@@ -40,7 +40,7 @@ public class GUI_Client2 extends Application implements Observer
     private Label movesRemaining = new Label();
     /** A Label that tells the user whose move it currently is. */
     private Label currentMove = new Label();
-    /** A Label that tells the user the status of the game (USUALLY ON). */
+    /** A Label that tells the user the status of the game (USUALLY RUNNING). */
     private Label gameStatus = new Label("Running");
 
     /** The GridPane that our tiles will be held in. Consider this the board game. */
@@ -52,6 +52,12 @@ public class GUI_Client2 extends Application implements Observer
     private Image p1 = new Image(getClass().getResourceAsStream("othelloP1.jpg"));
     /** The image that is used for a location that has player 2 facing up */
     private Image p2 = new Image(getClass().getResourceAsStream("othelloP2.jpg"));
+
+    /** The Font that is used for the Labels on the bottom */
+    private Font bottomFont = new Font(20);
+    /** The Font that is used for the Label on the top */
+    private Font topFont = Font.font("Arial", FontWeight.BOLD,30);
+
 
     /**
      * Look up a named command line parameter (format "--name=value")
@@ -170,17 +176,23 @@ public class GUI_Client2 extends Application implements Observer
             {
                 // makes a new button with no text
                 Button btn = new Button();
+
+                /* < attributes > */
                 // sets the ID so that we can get its row and column on its action
                 btn.setId(col + " " + row);
+
+                /* < styles > */
                 // makes the graphic for the middle pieces their corresponding players
                 btn.setGraphic(new ImageView(empty));
                 // sets the buttons so they have rectangular corners (rather than rounded, makes it look uniform)
                 btn.setStyle("-fx-background-radius: 0em; ");
+
+                /* < three event listeners > */
                 // adds an event to the button so that a move is checked
                 btn.setOnMouseClicked( (event) -> checkMove(btn) );
-                // adds an event so that on mouseover, the piece brightens a bit
+                // adds an event so that on mouse-over, the piece brightens a bit
                 btn.setOnMouseEntered( (event) -> mouseEnter(btn));
-                // adds an event so that on mouseexit, the piece loses its brightness
+                // adds an event so that on mouse-exit, the piece returns to default brightness
                 btn.setOnMouseExited( (event) -> mouseExit(btn));
 
                 // adds the button to the GridPane
@@ -208,7 +220,7 @@ public class GUI_Client2 extends Application implements Observer
         HBox.setHgrow(spacer2, Priority.ALWAYS);
 
         // sets the text to the correct size in the label
-        currentMove.setFont(new Font(30));
+        currentMove.setFont(topFont);
 
         // returns a new HBox (we don't need to specifically save it for access)
         return new HBox(spacer1, currentMove, spacer2);
@@ -221,22 +233,21 @@ public class GUI_Client2 extends Application implements Observer
      */
     private HBox buildBottomLabelHBox()
     {
-        // makes three spacers for the bottom HBox
-        Region spacer1 = new Region();
-        Region spacer2 = new Region();
-        Region spacer3 = new Region();
+        // makes a spacer for the bottom HBox
+        Region spacer = new Region();
 
-        // sets the attributes of the spacers
-        HBox.setHgrow(spacer1, Priority.ALWAYS);
-        HBox.setHgrow(spacer2, Priority.ALWAYS);
-        HBox.setHgrow(spacer3, Priority.ALWAYS);
+        // sets the attributes of the spacer
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
         // sets the text to the correct size in the labels
-        movesRemaining.setFont(new Font(30));
-        gameStatus.setFont(new Font(30));
+        movesRemaining.setFont(bottomFont);
+        gameStatus.setFont(bottomFont);
+
+        // set the game status to green so that it says "Running" in green
+        gameStatus.setTextFill(Color.web("#24b749"));
 
         // returns a new HBox (we don't need to specifically save it for access)
-        return new HBox(spacer1, movesRemaining, spacer2, gameStatus, spacer3);
+        return new HBox(movesRemaining, spacer, gameStatus);
     }
 
     /**
@@ -433,7 +444,7 @@ public class GUI_Client2 extends Application implements Observer
         // gets the number of moves left (used for ternary to get plurality correct)
         int movesLeft = this.model.getMovesLeft();
         javafx.application.Platform.runLater(() ->
-                movesRemaining.setText(movesLeft + (movesLeft != 1 ? " MOVES LEFT": " MOVE LEFT")));
+                movesRemaining.setText("Moves left: " + movesLeft));
     }
 
     /**
@@ -498,7 +509,7 @@ public class GUI_Client2 extends Application implements Observer
                 break;
             default:
                 // the default is an error
-                msg = "AN ERROR OCCURRED!";
+                msg = "ERROR!";
                 color = Color.web("#b70000");
         }
 

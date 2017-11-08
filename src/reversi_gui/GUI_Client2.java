@@ -191,9 +191,9 @@ public class GUI_Client2 extends Application implements Observer
                 // adds an event to the button so that a move is checked
                 btn.setOnMouseClicked( (event) -> checkMove(btn) );
                 // adds an event so that on mouse-over, the piece brightens a bit
-                btn.setOnMouseEntered( (event) -> mouseEnter(btn));
+                btn.setOnMouseEntered( (event) -> brightenButton(btn));
                 // adds an event so that on mouse-exit, the piece returns to default brightness
-                btn.setOnMouseExited( (event) -> mouseExit(btn));
+                btn.setOnMouseExited( (event) -> normalizeButton(btn));
 
                 // adds the button to the GridPane
                 gp.add(btn, col, row);
@@ -349,7 +349,7 @@ public class GUI_Client2 extends Application implements Observer
      *
      * @param btn The button in which should now be a bit brighter.
      */
-    private void mouseEnter(Button btn)
+    private void brightenButton(Button btn)
     {
         // set a filter to make the image 20% brighter (so we know which one the mouse is over)
         ColorAdjust bright = new ColorAdjust();
@@ -374,7 +374,7 @@ public class GUI_Client2 extends Application implements Observer
      *
      * @param btn The button to remove the brightness from.
      */
-    private void mouseExit(Button btn)
+    private void normalizeButton(Button btn)
     {
         // determine the image we need
         int row = getButtonRow(btn);
